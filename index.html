@@ -36,8 +36,184 @@
         }
     </script>
     
-    <!-- Google Maps API for Address Autocomplete -->
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg&libraries=places&callback=initAutocomplete"></script>
+    <!-- Google Maps Places API with Bulletproof Fallback -->
+    <script>
+        // Global variables for tracking
+        let googleMapsLoaded = false;
+        let googleMapsAttempted = false;
+        
+        // Fallback validation system (same as before but as backup)
+        const locationData = {
+            states: ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'],
+            cities: ['new york','los angeles','chicago','houston','phoenix','philadelphia','san antonio','san diego','dallas','san jose','austin','jacksonville','fort worth','columbus','charlotte','san francisco','indianapolis','seattle','denver','washington','boston','el paso','detroit','nashville','portland','memphis','oklahoma city','las vegas','louisville','baltimore','milwaukee','albuquerque','tucson','fresno','sacramento','kansas city','mesa','atlanta','colorado springs','raleigh','omaha','miami','oakland','tulsa','minneapolis','cleveland','wichita','arlington'],
+            patterns: {
+                address: /\d+\s+[\w\s]+(?:street|st|avenue|ave|road|rd|boulevard|blvd|lane|ln|drive|dr|court|ct|place|pl|way|circle|cir)\b/i,
+                zipCode: /\b\d{5}(?:-\d{4})?\b/,
+                cityState: /\b[a-z\s]+,\s*[a-z]{2}\b/i
+            }
+        };
+
+        function fallbackValidation(input) {
+            const value = input.value.toLowerCase().trim();
+            let score = 0;
+
+            if (value.length < 5) {
+                input.style.borderColor = '#d1d5db';
+                input.style.backgroundColor = '#ffffff';
+                input.style.boxShadow = 'none';
+                return;
+            }
+
+            // Check for address pattern
+            if (locationData.patterns.address.test(value)) score += 3;
+            if (locationData.patterns.zipCode.test(value)) score += 2;
+            if (locationData.patterns.cityState.test(value)) score += 2;
+            
+            locationData.states.forEach(state => {
+                if (value.includes(state.toLowerCase())) score += 1;
+            });
+            
+            locationData.cities.forEach(city => {
+                if (value.includes(city)) score += 1;
+            });
+
+            // Apply styling
+            if (score >= 3) {
+                input.style.borderColor = '#10b981';
+                input.style.backgroundColor = '#f0fdf4';
+                input.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+            } else if (score >= 1) {
+                input.style.borderColor = '#f59e0b';
+                input.style.backgroundColor = '#fffbeb';
+                input.style.boxShadow = '0 0 0 3px rgba(245, 158, 11, 0.1)';
+            } else {
+                input.style.borderColor = '#d1d5db';
+                input.style.backgroundColor = '#ffffff';
+                input.style.boxShadow = 'none';
+            }
+        }
+
+        // Google Maps initialization
+        function initGoogleMaps() {
+            try {
+                console.log('Attempting Google Maps initialization...');
+                
+                if (typeof google === 'undefined' || !google.maps || !google.maps.places) {
+                    throw new Error('Google Maps API not available');
+                }
+
+                const pickupInput = document.getElementById('pickup-address');
+                const deliveryInput = document.getElementById('delivery-address');
+
+                if (pickupInput) {
+                    const pickupAutocomplete = new google.maps.places.Autocomplete(pickupInput, {
+                        types: ['address'],
+                        componentRestrictions: { country: ['us', 'ca', 'mx'] },
+                        fields: ['formatted_address', 'address_components', 'place_id']
+                    });
+
+                    pickupAutocomplete.addListener('place_changed', function() {
+                        const place = pickupAutocomplete.getPlace();
+                        if (place && place.formatted_address) {
+                            pickupInput.style.borderColor = '#10b981';
+                            pickupInput.style.backgroundColor = '#f0fdf4';
+                            pickupInput.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                            console.log('Pickup address selected:', place.formatted_address);
+                        }
+                    });
+
+                    // Mark as Google Maps enabled
+                    pickupInput.setAttribute('data-google-maps', 'true');
+                }
+
+                if (deliveryInput) {
+                    const deliveryAutocomplete = new google.maps.places.Autocomplete(deliveryInput, {
+                        types: ['address'],
+                        componentRestrictions: { country: ['us', 'ca', 'mx'] },
+                        fields: ['formatted_address', 'address_components', 'place_id']
+                    });
+
+                    deliveryAutocomplete.addListener('place_changed', function() {
+                        const place = deliveryAutocomplete.getPlace();
+                        if (place && place.formatted_address) {
+                            deliveryInput.style.borderColor = '#10b981';
+                            deliveryInput.style.backgroundColor = '#f0fdf4';
+                            deliveryInput.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                            console.log('Delivery address selected:', place.formatted_address);
+                        }
+                    });
+
+                    // Mark as Google Maps enabled
+                    deliveryInput.setAttribute('data-google-maps', 'true');
+                }
+
+                googleMapsLoaded = true;
+                console.log('✅ Google Maps Places API successfully initialized!');
+                
+            } catch (error) {
+                console.log('❌ Google Maps failed to initialize:', error.message);
+                console.log('🔄 Falling back to custom validation system...');
+                activateFallbackValidation();
+            }
+        }
+
+        // Activate fallback validation system
+        function activateFallbackValidation() {
+            const pickupInput = document.getElementById('pickup-address');
+            const deliveryInput = document.getElementById('delivery-address');
+
+            if (pickupInput && !pickupInput.getAttribute('data-google-maps')) {
+                pickupInput.addEventListener('input', () => fallbackValidation(pickupInput));
+                pickupInput.addEventListener('blur', () => fallbackValidation(pickupInput));
+            }
+
+            if (deliveryInput && !deliveryInput.getAttribute('data-google-maps')) {
+                deliveryInput.addEventListener('input', () => fallbackValidation(deliveryInput));
+                deliveryInput.addEventListener('blur', () => fallbackValidation(deliveryInput));
+            }
+        }
+
+        // Load Google Maps API
+        function loadGoogleMapsAPI() {
+            if (googleMapsAttempted) return;
+            googleMapsAttempted = true;
+
+            console.log('🗺️ Loading Google Maps Places API...');
+            
+            const script = document.createElement('script');
+            script.async = true;
+            script.defer = true;
+            script.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg&libraries=places&callback=initGoogleMaps';
+            
+            script.onerror = function() {
+                console.log('❌ Google Maps script failed to load');
+                console.log('🔄 Activating fallback validation...');
+                activateFallbackValidation();
+            };
+
+            // Set global callback
+            window.initGoogleMaps = initGoogleMaps;
+            
+            document.head.appendChild(script);
+
+            // Timeout fallback
+            setTimeout(function() {
+                if (!googleMapsLoaded) {
+                    console.log('⏰ Google Maps timeout - activating fallback');
+                    activateFallbackValidation();
+                }
+            }, 5000);
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Page loaded - attempting Google Maps integration...');
+            loadGoogleMapsAPI();
+            
+            // Always set up fallback after a delay
+            setTimeout(activateFallbackValidation, 6000);
+        });
+    </script>
 </head>
 <body class="font-inter bg-white">
     <!-- Navigation -->
@@ -85,7 +261,7 @@
     </nav>
 
     <!-- Hero Section -->
-    <section id="home" class="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <section id="home" class="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 pt-20 sm:pt-16">
         <!-- Video Background -->
         <video autoplay muted loop class="absolute inset-0 w-full h-full object-cover">
             <source src="images/hero_video.mp4" type="video/mp4">
@@ -94,7 +270,7 @@
         </video>
         <div class="absolute inset-0 bg-black opacity-50"></div>
         
-        <div class="relative z-10 text-center text-white max-w-4xl mx-auto px-4">
+        <div class="relative z-10 text-center text-white max-w-4xl mx-auto px-4 py-8">
             <h1 class="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold mb-6 leading-tight">
                 <span class="text-white block sm:inline" style="color: white !important;">Fast. Reliable.</span> <span class="text-jet-red">Professional.</span>
             </h1>
@@ -407,7 +583,7 @@
                                     <i class="fas fa-map-marker-alt text-jet-red mr-1"></i>Pickup Location
                                 </label>
                                 <input type="text" id="pickup-address" name="pickup_location" required 
-                                       placeholder="Enter pickup address..."
+                                       placeholder="e.g. 123 Main St, Dallas, TX 75201"
                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-jet-blue">
                             </div>
                             <div>
@@ -415,7 +591,7 @@
                                     <i class="fas fa-map-marker-alt text-jet-red mr-1"></i>Delivery Location
                                 </label>
                                 <input type="text" id="delivery-address" name="delivery_location" required 
-                                       placeholder="Enter delivery address..."
+                                       placeholder="e.g. 456 Oak Ave, Houston, TX 77001"
                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-jet-blue">
                             </div>
                         </div>
@@ -514,62 +690,6 @@
     <!-- JavaScript -->
     <script src="js/main.js"></script>
     
-    <!-- Google Maps Autocomplete -->
-    <script>
-        let pickupAutocomplete, deliveryAutocomplete;
-        
-        function initAutocomplete() {
-            // Initialize autocomplete for pickup location
-            const pickupInput = document.getElementById('pickup-address');
-            const deliveryInput = document.getElementById('delivery-address');
-            
-            if (pickupInput) {
-                pickupAutocomplete = new google.maps.places.Autocomplete(pickupInput, {
-                    componentRestrictions: { country: ['us', 'ca', 'mx'] },
-                    fields: ['address_components', 'formatted_address', 'geometry', 'place_id'],
-                    types: ['address']
-                });
-                
-                // Add icons and styling to dropdown
-                pickupAutocomplete.addListener('place_changed', function() {
-                    const place = pickupAutocomplete.getPlace();
-                    if (place.formatted_address) {
-                        pickupInput.value = place.formatted_address;
-                        // Add visual confirmation
-                        pickupInput.style.borderColor = '#10b981';
-                        pickupInput.style.backgroundColor = '#f0fdf4';
-                    }
-                });
-            }
-            
-            if (deliveryInput) {
-                deliveryAutocomplete = new google.maps.places.Autocomplete(deliveryInput, {
-                    componentRestrictions: { country: ['us', 'ca', 'mx'] },
-                    fields: ['address_components', 'formatted_address', 'geometry', 'place_id'],
-                    types: ['address']
-                });
-                
-                deliveryAutocomplete.addListener('place_changed', function() {
-                    const place = deliveryAutocomplete.getPlace();
-                    if (place.formatted_address) {
-                        deliveryInput.value = place.formatted_address;
-                        // Add visual confirmation
-                        deliveryInput.style.borderColor = '#10b981';
-                        deliveryInput.style.backgroundColor = '#f0fdf4';
-                    }
-                });
-            }
-        }
-        
-        // Fallback initialization if the API loads after the page
-        window.initAutocomplete = initAutocomplete;
-        
-        // Initialize when page loads
-        if (typeof google !== 'undefined' && google.maps && google.maps.places) {
-            initAutocomplete();
-        }
-    </script>
-
 
 </body>
 </html>
