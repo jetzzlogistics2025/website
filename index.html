@@ -36,8 +36,7 @@
         }
     </script>
     
-    <!-- Google Maps API for Address Autocomplete -->
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg&libraries=places&callback=initAutocomplete"></script>
+    <!-- Address verification handled by simple form validation -->
 </head>
 <body class="font-inter bg-white">
     <!-- Navigation -->
@@ -514,61 +513,33 @@
     <!-- JavaScript -->
     <script src="js/main.js"></script>
     
-    <!-- Google Maps Autocomplete -->
+    <!-- Simple Address Validation -->
     <script>
-        let pickupAutocomplete, deliveryAutocomplete;
-        
-        function initAutocomplete() {
-            // Initialize autocomplete for pickup location
+        // Simple form validation and visual feedback
+        document.addEventListener('DOMContentLoaded', function() {
             const pickupInput = document.getElementById('pickup-address');
             const deliveryInput = document.getElementById('delivery-address');
             
-            if (pickupInput) {
-                pickupAutocomplete = new google.maps.places.Autocomplete(pickupInput, {
-                    componentRestrictions: { country: ['us', 'ca', 'mx'] },
-                    fields: ['address_components', 'formatted_address', 'geometry', 'place_id'],
-                    types: ['address']
-                });
-                
-                // Add icons and styling to dropdown
-                pickupAutocomplete.addListener('place_changed', function() {
-                    const place = pickupAutocomplete.getPlace();
-                    if (place.formatted_address) {
-                        pickupInput.value = place.formatted_address;
-                        // Add visual confirmation
-                        pickupInput.style.borderColor = '#10b981';
-                        pickupInput.style.backgroundColor = '#f0fdf4';
+            function addValidationFeedback(input) {
+                input.addEventListener('input', function() {
+                    if (this.value.length > 10) {
+                        // Show green border when address looks complete
+                        this.style.borderColor = '#10b981';
+                        this.style.backgroundColor = '#f0fdf4';
+                    } else {
+                        // Reset to default styling
+                        this.style.borderColor = '#d1d5db';
+                        this.style.backgroundColor = '#ffffff';
                     }
                 });
             }
             
-            if (deliveryInput) {
-                deliveryAutocomplete = new google.maps.places.Autocomplete(deliveryInput, {
-                    componentRestrictions: { country: ['us', 'ca', 'mx'] },
-                    fields: ['address_components', 'formatted_address', 'geometry', 'place_id'],
-                    types: ['address']
-                });
-                
-                deliveryAutocomplete.addListener('place_changed', function() {
-                    const place = deliveryAutocomplete.getPlace();
-                    if (place.formatted_address) {
-                        deliveryInput.value = place.formatted_address;
-                        // Add visual confirmation
-                        deliveryInput.style.borderColor = '#10b981';
-                        deliveryInput.style.backgroundColor = '#f0fdf4';
-                    }
-                });
-            }
-        }
-        
-        // Fallback initialization if the API loads after the page
-        window.initAutocomplete = initAutocomplete;
-        
-        // Initialize when page loads
-        if (typeof google !== 'undefined' && google.maps && google.maps.places) {
-            initAutocomplete();
-        }
+            if (pickupInput) addValidationFeedback(pickupInput);
+            if (deliveryInput) addValidationFeedback(deliveryInput);
+        });
     </script>
-    
+
+
+
 </body>
 </html>
